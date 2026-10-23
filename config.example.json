@@ -1,4 +1,10 @@
 {
+  "ai": {
+    "enabled": false,
+    "timeout": 90,
+    "min_confidence": 0.8,
+    "descriptions": {}
+  },
   "sources": {
     "downloads": "demo/input/Downloads",
     "telegram": "demo/input/Telegram",

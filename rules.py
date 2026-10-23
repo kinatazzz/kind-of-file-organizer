@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Optional
 
+from ai_classifier import classify_file
+
 
 # допустимые разделители после ключа
 KEY_SEPARATORS = " _-.–—"
@@ -76,6 +78,43 @@ def make_folder_path(folder_path: str, base_dir: Path) -> Path:
         ) from error
 
 
+def ai_destination(
+    section: str, name: str, config: dict, base_dir: Path,
+) -> tuple[Path, Optional[Path]]:
+    subject = name if section == "subjects" else None
+    project = name if section == "projects" else None
+
+    # связываем предмет с его проектом
+    if subject is not None:
+        matches = {
+            find_match(key, config["projects"])
+            for key in config["subjects"][subject]
+        } - {None}
+        if len(matches) > 1:
+            raise ValueError("Для предмета найдено несколько проектов Codex.")
+        project = next(iter(matches), None)
+    elif project is not None:
+        matches = {
+            find_match(key, config["subjects"])
+            for key in config["projects"][project]["keys"]
+        } - {None}
+        if len(matches) > 1:
+            raise ValueError("Для проекта найдено несколько учебных предметов.")
+        subject = next(iter(matches), None)
+
+    codex_folder = None
+    if project is not None:
+        codex_folder = make_folder_path(
+            config["projects"][project].get("codex_folder"), base_dir
+        )
+    if subject is not None:
+        folder = make_folder_path(config["destinations"].get("education"), base_dir)
+        return folder / subject, codex_folder
+
+    folder = make_folder_path(config["destinations"].get("work"), base_dir)
+    return folder / name, codex_folder
+
+
 def choose_destination(
     file_path: Path,
     source_name: str,
@@ -141,6 +180,12 @@ def choose_destination(
         return make_folder_path(
             destinations.get("screenshots"), base_dir
         ), None
+
+    # просим codex только после обычных ключей
+    if config.get("ai", {}).get("enabled", False):
+        category = classify_file(file_path, config)
+        if category is not None:
+            return ai_destination(*category, config, base_dir)
 
     if source_name == "telegram":
         return make_folder_path(

@@ -45,6 +45,12 @@ def load_config(config_path: Path) -> dict:
                 f"Неверный тип данных в разделе «{section_name}»."
             )
 
+    if "ai" in config:
+        if not isinstance(config["ai"], dict):
+            raise ValueError("Раздел ai должен быть JSON-объектом.")
+        if type(config["ai"].get("enabled", False)) is not bool:
+            raise ValueError("В ai.enabled нужно true или false.")
+
     return config
     
 def show_preview(config: dict, base_dir: Path) -> int:
@@ -187,6 +193,9 @@ def main() -> int:
     parser.add_argument(
         "--apply", action="store_true", help="переместить файлы"
     )
+    parser.add_argument(
+        "--ai", action="store_true", help="анализировать неизвестные файлы через Codex"
+    )
     args = parser.parse_args()
     # обрабатываем ошибки чтения и проверки
     try:
@@ -216,6 +225,8 @@ def main() -> int:
         print(f"Папок-источников: {len(config['sources'])}")
         print(f"Предметов: {len(config['subjects'])}")
         print(f"Проектов Codex: {len(config['projects'])}")
+        if args.ai:
+            config.setdefault("ai", {})["enabled"] = True
         if args.apply:
             return apply_distribution(config, BASE_DIR)
         return show_preview(config, BASE_DIR)
