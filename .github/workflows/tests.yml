@@ -1,0 +1,106 @@
+name: Проверка органайзера
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Проверить предварительное распределение
+        run: |
+          python - <<'PY'
+          import json
+          import shutil
+          import subprocess
+          import sys
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+
+          with Path("config.example.json").open(encoding="utf-8") as file:
+              config = json.load(file)
+
+          # все пути ведут во временную папку
+          with TemporaryDirectory() as temporary:
+              base = Path(temporary).resolve()
+              config["sources"] = {
+                  name: f"input/{name}" for name in config["sources"]
+              }
+              config["destinations"] = {
+                  name: f"output/{name}" for name in config["destinations"]
+              }
+              for number, project in enumerate(config["projects"].values()):
+                  project["codex_folder"] = f"codex/{number}"
+
+              for name in ("organizer.py", "scanner.py", "rules.py"):
+                  shutil.copy2(name, base / name)
+
+              with (base / "config.example.json").open("w", encoding="utf-8") as file:
+                  json.dump(config, file, ensure_ascii=False)
+
+              for folder in config["sources"].values():
+                  (base / folder).mkdir(parents=True)
+
+              # задаём ожидаемые результаты
+              cases = [
+                  ("downloads", "Питон_тест.txt", "output/education/Программирование на Питоне", "Мага | Питон"),
+                  ("downloads", "offersagr_тест.csv", "output/work/offersagr", "offersagr"),
+                  ("telegram", "без_ключа.txt", "output/telegram_other", None),
+                  ("downloads", "без_ключа.pdf", "output/work/Остальное", None),
+                  ("desktop", "Screenshot_test.png", "output/screenshots", None),
+                  ("downloads", "картинка.png", "output/other", None),
+              ]
+
+              for source, name, destination, project in cases:
+                  path = base / config["sources"][source] / name
+                  path.write_text("тест", encoding="utf-8")
+
+              for name in ("установщик.dmg", "загрузка.crdownload"):
+                  (base / "input/downloads" / name).write_bytes(b"test")
+
+              before = {
+                  path: path.read_bytes()
+                  for path in base.rglob("*") if path.is_file()
+              }
+
+              # запускаем настоящую программу
+              result = subprocess.run(
+                  [sys.executable, "-B", str(base / "organizer.py")],
+                  capture_output=True, text=True, encoding="utf-8", timeout=30,
+              )
+              print(result.stdout)
+              assert result.returncode == 0, result.stderr
+
+              for source, name, destination, project in cases:
+                  path = base / config["sources"][source] / name
+                  expected = f"[{source}] {path}\n  Переместить в: {base / destination}"
+                  if project is not None:
+                      copy = base / config["projects"][project]["codex_folder"]
+                      expected += f"\n  Копия в Codex: {copy}"
+                  assert expected in result.stdout, f"Неверный маршрут: {name}"
+
+              assert "Найдено файлов: 6\n" in result.stdout
+              assert "В плане распределения: 6\n" in result.stdout
+              assert "Дополнительных копий: 2\n" in result.stdout
+              assert "установщик.dmg" not in result.stdout
+              assert "загрузка.crdownload" not in result.stdout
+
+              # проверяем сохранность файлов
+              after = {
+                  path: path.read_bytes()
+                  for path in base.rglob("*") if path.is_file()
+              }
+              assert before == after, "Предпросмотр изменил файлы"
+              assert not (base / "output").exists(), "Созданы папки назначения"
+              assert not (base / "codex").exists(), "Созданы папки копирования"
+              print("Все проверки пройдены")
+          PY
