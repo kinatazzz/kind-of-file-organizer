@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Проверить предварительное распределение
+      - name: Проверить предпросмотр, перемещение и дубликаты
         run: |
           python - <<'PY'
           import json
@@ -102,5 +102,75 @@ jobs:
               assert before == after, "Предпросмотр изменил файлы"
               assert not (base / "output").exists(), "Созданы папки назначения"
               assert not (base / "codex").exists(), "Созданы папки копирования"
-              print("Все проверки пройдены")
+              print("Проверки предпросмотра пройдены")
+
+              def run_apply():
+                  result = subprocess.run(
+                      [sys.executable, "-B", str(base / "organizer.py"), "--apply"],
+                      capture_output=True, text=True, encoding="utf-8", timeout=30,
+                  )
+                  print(result.stdout)
+                  assert result.returncode == 0, result.stderr
+                  return result.stdout
+
+              # проверяем перемещение и копии
+              output = run_apply()
+              assert "Перемещено файлов: 6\n" in output
+              assert "Из них дубликатов: 0\n" in output
+              assert "Создано копий в Codex: 2\n" in output
+
+              for source, name, destination, project in cases:
+                  original = base / config["sources"][source] / name
+                  target = base / destination / name
+                  assert not original.exists(), f"Исходник остался: {name}"
+                  assert target.read_text(encoding="utf-8") == "тест"
+                  if project is not None:
+                      copy = base / config["projects"][project]["codex_folder"] / name
+                      assert copy.read_text(encoding="utf-8") == "тест"
+
+              # готовим повтор и новую версию
+              python_file = base / "input/downloads/Питон_тест.txt"
+              work_file = base / "input/downloads/offersagr_тест.csv"
+              python_file.write_text("тест", encoding="utf-8")
+              work_file.write_text("ново", encoding="utf-8")
+
+              output = run_apply()
+              assert "Перемещено файлов: 2\n" in output
+              assert "Из них дубликатов: 1\n" in output
+              assert "Создано копий в Codex: 1\n" in output
+              assert "Копий уже существовало: 1\n" in output
+              assert not python_file.exists()
+              assert not work_file.exists()
+
+              # проверяем дубликат и сохранность версий
+              duplicate = base / "output/duplicates/Питон_тест.txt"
+              assert duplicate.read_text(encoding="utf-8") == "тест"
+              old_version = base / "output/work/offersagr/offersagr_тест.csv"
+              new_version = base / "output/work/offersagr/offersagr_тест_1.csv"
+              assert old_version.read_text(encoding="utf-8") == "тест"
+              assert new_version.read_text(encoding="utf-8") == "ново"
+
+              python_folder = base / config["projects"]["Мага | Питон"]["codex_folder"]
+              assert len(list(python_folder.iterdir())) == 1
+              work_folder = base / config["projects"]["offersagr"]["codex_folder"]
+              assert (work_folder / "offersagr_тест.csv").read_text(encoding="utf-8") == "тест"
+              assert (work_folder / "offersagr_тест_1.csv").read_text(encoding="utf-8") == "ново"
+
+              for name in ("установщик.dmg", "загрузка.crdownload"):
+                  assert (base / "input/downloads" / name).read_bytes() == b"test"
+
+              # пустой запуск ничего не меняет
+              before = {
+                  path: path.read_bytes()
+                  for path in base.rglob("*") if path.is_file()
+              }
+              output = run_apply()
+              assert "Перемещено файлов: 0\n" in output
+              assert "Создано копий в Codex: 0\n" in output
+              after = {
+                  path: path.read_bytes()
+                  for path in base.rglob("*") if path.is_file()
+              }
+              assert before == after, "Повторный запуск изменил файлы"
+              print("Проверки перемещения и дубликатов пройдены")
           PY

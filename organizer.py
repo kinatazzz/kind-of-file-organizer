@@ -3,7 +3,7 @@
 import argparse
 from mover import copy_to_codex, move_file
 from collections import Counter
-from rules import choose_destination, , make_folder_path
+from rules import choose_destination, make_folder_path
 from scanner import scan_sources
 import json
 import sys
@@ -218,6 +218,7 @@ def main() -> int:
         print(f"Проектов Codex: {len(config['projects'])}")
         if args.apply:
             return apply_distribution(config, BASE_DIR)
+        return show_preview(config, BASE_DIR)
 
 
     print(f"Ошибка: {error_message}", file=sys.stderr)
