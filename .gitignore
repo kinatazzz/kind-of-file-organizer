@@ -205,6 +205,8 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 demo/
+config.local.json
+/organizer.plist
 
 # Ruff stuff:
 .ruff_cache/

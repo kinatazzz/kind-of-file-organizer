@@ -63,4 +63,40 @@ python3 -m unittest discover -s tests -v
 
 GitHub Actions проверяет предпросмотр, перемещение, дубликаты и AI-логику с
 подставными ответами. В GitHub не передаются личные файлы, авторизация и реальные
-запросы к Codex. Автоматический запуск каждые пять минут пока не настроен.
+запросы к Codex.
+
+## Личные папки и запуск каждые пять минут на macOS
+
+Скопировать `config.example.json` в `config.local.json` и указать свои папки
+в разделах `sources`, `destinations` и `projects`. Для Telegram нужна отдельная
+папка загрузок, выбранная также в настройках самого Telegram. В `ai.enabled`
+поставить `true`, если нужен анализ содержимого. Личные настройки исключены из Git.
+
+Сначала проверить план распределения:
+
+```bash
+python organizer.py --config config.local.json
+```
+
+Затем из активированного виртуального окружения подготовить и включить таймер:
+
+```bash
+python macos_schedule.py --config config.local.json
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs/kind-of-file-organizer"
+cp organizer.plist "$HOME/Library/LaunchAgents/local.kind-of-file-organizer.plist"
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/local.kind-of-file-organizer.plist"
+```
+
+`macos_schedule.py` только создаёт файл расписания. Последняя команда включает
+запуск с перемещением каждые 300 секунд. Терминал после настройки можно закрыть;
+после следующего входа в macOS таймер загрузится автоматически. Во время сна и
+выключения компьютера программа не работает. Если предыдущий запуск ещё идёт,
+следующее срабатывание пропускается.
+
+Результаты находятся в `~/Library/Logs/kind-of-file-organizer/organizer.log`,
+ошибки — в соседнем `errors.log`. Чтобы выключить таймер:
+
+```bash
+launchctl bootout "gui/$(id -u)/local.kind-of-file-organizer"
+rm "$HOME/Library/LaunchAgents/local.kind-of-file-organizer.plist"
+```

@@ -196,17 +196,22 @@ def main() -> int:
     parser.add_argument(
         "--ai", action="store_true", help="анализировать неизвестные файлы через Codex"
     )
+    parser.add_argument(
+        "--config", type=Path, default=CONFIG_PATH, help="путь к файлу настроек"
+    )
     args = parser.parse_args()
+    config_path = args.config
     # обрабатываем ошибки чтения и проверки
     try:
-        config = load_config(CONFIG_PATH)
+        config_path = make_folder_path(str(config_path), BASE_DIR)
+        config = load_config(config_path)
     except FileNotFoundError:
-        error_message = f"Не найден файл настроек: {CONFIG_PATH}"
+        error_message = f"Не найден файл настроек: {config_path}"
     except PermissionError:
-        error_message = f"Нет доступа к файлу настроек: {CONFIG_PATH}"
+        error_message = f"Нет доступа к файлу настроек: {config_path}"
     except IsADirectoryError:
         error_message = (
-            f"Вместо файла настроек указана папка: {CONFIG_PATH}"
+            f"Вместо файла настроек указана папка: {config_path}"
         )
     except UnicodeDecodeError:
         error_message = "Сохраните файл настроек в кодировке UTF-8."
