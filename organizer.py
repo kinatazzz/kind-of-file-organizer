@@ -6,7 +6,9 @@ from collections import Counter
 from rules import choose_destination, make_folder_path
 from scanner import scan_sources
 import json
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 # ищем настройки рядом со скриптом
@@ -187,6 +189,47 @@ def apply_distribution(config: dict, base_dir: Path) -> int:
     print(f"Ошибок: {len(errors)}")
     return 1 if errors else 0
 
+def demo_folder(folder: str, run_dir: Path) -> str:
+    # ограничиваем тестовые пути папкой текущего запуска
+    path = (run_dir / Path(folder).relative_to("demo")).resolve()
+    path.relative_to(run_dir)
+    return str(path)
+
+
+def run_demo(base_dir: Path) -> int:
+    try:
+        config = load_config(base_dir / "config.example.json")
+        config.setdefault("ai", {})["enabled"] = False
+        demo_root = base_dir / "demo"
+        demo_root.mkdir(exist_ok=True)
+        run_dir = Path(tempfile.mkdtemp(prefix="run-", dir=demo_root)).resolve()
+        for section in ("sources", "destinations"):
+            config[section] = {
+                name: demo_folder(folder, run_dir)
+                for name, folder in config[section].items()
+            }
+        for project in config["projects"].values():
+            project["codex_folder"] = demo_folder(project["codex_folder"], run_dir)
+        with (run_dir / "config.json").open("x", encoding="utf-8") as file:
+            json.dump(config, file, ensure_ascii=False, indent=2)
+
+        # проверяем оба набора обычной сортировкой
+        for folder, label in (("input", "первый набор"), ("second_run", "повторная загрузка")):
+            shutil.copytree(base_dir / "examples" / folder, run_dir / "input", dirs_exist_ok=True)
+            print(f"\nДемонстрация: {label}")
+            if folder == "input" and show_preview(config, run_dir):
+                return 1
+            if apply_distribution(config, run_dir):
+                return 1
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"Не удалось запустить демо: {error}", file=sys.stderr)
+        return 1
+    print(f"\nГотово. Результаты: {run_dir / 'output'}")
+    print(f"Дополнительные копии: {run_dir / 'codex'}")
+    print(f"Настройки этого запуска: {run_dir / 'config.json'}")
+    return 0
+
+
 def main() -> int:
     # выбираем режим запуска
     parser = argparse.ArgumentParser(description="Органайзер файлов")
@@ -199,7 +242,14 @@ def main() -> int:
     parser.add_argument(
         "--config", type=Path, default=CONFIG_PATH, help="путь к файлу настроек"
     )
+    parser.add_argument(
+        "--demo", action="store_true", help="подготовить и распределить тестовые файлы"
+    )
     args = parser.parse_args()
+    if args.demo:
+        if args.apply or args.ai or args.config != CONFIG_PATH:
+            parser.error("--demo запускается отдельно от --apply, --ai и --config")
+        return run_demo(BASE_DIR)
     config_path = args.config
     # обрабатываем ошибки чтения и проверки
     try:
