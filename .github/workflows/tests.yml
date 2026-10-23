@@ -41,7 +41,7 @@ jobs:
               for number, project in enumerate(config["projects"].values()):
                   project["codex_folder"] = f"codex/{number}"
 
-              for name in ("organizer.py", "scanner.py", "rules.py"):
+              for name in ("organizer.py", "scanner.py", "rules.py", "mover.py" ):
                   shutil.copy2(name, base / name)
 
               with (base / "config.example.json").open("w", encoding="utf-8") as file:
