@@ -1,0 +1,93 @@
+// это файл настроек, тут пути и правила выбора папок
+
+{
+  "sources": { // источники
+    "downloads": "demo/input/Downloads",
+    "telegram": "demo/input/Telegram",
+    "desktop": "demo/input/Desktop"
+  },
+  "destinations": { // куда складывать в зависимости от области файлы
+    "education": "demo/output/Образование/Магистратура",
+    "work": "demo/output/Рабочее",
+    "screenshots": "demo/output/Скриншоты",
+    "telegram_other": "demo/output/Телеграмовское",
+    "other": "demo/output/Остальное",
+    "duplicates": "demo/output/Дубликаты"
+  },
+  "subjects": { // учеб предметы
+    "Семинар наставника": ["Сем_н"],
+    "Маркетинг в цифровой среде": ["МвЦС"],
+    "Математика для анализа данных": ["Матем"],
+    "Маркетинговый анализ и исследования": ["МаиИ"],
+    "Программирование на Питоне": ["Питон"]
+  },
+  "projects": { // проекты и куда копировать в кодекс
+    "Мага | Матем": {
+      "keys": ["Матем"],
+      "codex_folder": "demo/codex/мага/Входящие"
+    },
+    "Янго": {
+      "keys": ["Янго"],
+      "codex_folder": "demo/codex/работа яшка/Входящие"
+    },
+    "Отзывы по Бывшим": {
+      "keys": ["Отзывы по Бывшим"],
+      "codex_folder": "demo/codex/Отзывы по Бывшим 2/Входящие"
+    },
+    "offersagr": {
+      "keys": ["offersagr"],
+      "codex_folder": "demo/codex/Изменения в БП/Входящие"
+    },
+    "NPS": {
+      "keys": ["NPS"],
+      "codex_folder": "demo/codex/отправка NPS/Входящие"
+    },
+    "Остальное": {
+      "keys": ["Остальное"],
+      "codex_folder": "demo/codex/Левое/Входящие"
+    },
+    "Мага | МвЦС": {
+      "keys": ["МвЦС"],
+      "codex_folder": "demo/codex/Мага _ Маркетинг в цифровой среде/Входящие"
+    },
+    "Мага | Питон": {
+      "keys": ["Питон"],
+      "codex_folder": "demo/codex/Мага _ Питон/Входящие"
+    },
+    "Психолог": {
+      "keys": ["Психолог"],
+      "codex_folder": "demo/codex/Психо/Входящие"
+    },
+    "КО сейлз 17-": {
+      "keys": ["КО сейлз 17-"],
+      "codex_folder": "demo/codex/КО сейлз 17-/Входящие"
+    },
+    "Мага | МаиИ": {
+      "keys": ["МаиИ"],
+      "codex_folder": "demo/codex/Мага _ Маркетинговые исследования/Входящие"
+    },
+    "SLA GAP": {
+      "keys": ["SLA GAP"],
+      "codex_folder": "demo/codex/SLA GAP/Входящие"
+    },
+    "сценарий_фем": {
+      "keys": ["сценарий_фем"],
+      "codex_folder": "demo/codex/тз_тикетновый/Входящие"
+    },
+    "Вакансия": {
+      "keys": ["Вакансия"],
+      "codex_folder": "demo/codex/вака RFD/Входящие"
+    },
+    "НМ": {
+      "keys": ["НМ"],
+      "codex_folder": "demo/codex/Почему не выбирают яндексоидов/Входящие"
+    },
+    "Стажировки": {
+      "keys": ["Стажировки"],
+      "codex_folder": "demo/codex/Стажировки опросы предложить НМ/Входящие"
+    }
+  },
+  "work_extensions": [".csv", ".xlsx", ".txt", ".pdf", ".docx", ".mp4"], // рабочие и с которыми можно работать расширения
+  "skip_extensions": [".dmg"], // те которые забиваем
+  "screenshot_prefixes": ["Снимок экрана", "Screenshot", "Screen Shot"] // по каким началам узнаем что это скрин
+}
