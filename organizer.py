@@ -1,7 +1,9 @@
 # читаем и проверяем настройки 
 
+import argparse
+from mover import copy_to_codex, move_file
 from collections import Counter
-from rules import choose_destination
+from rules import choose_destination, , make_folder_path
 from scanner import scan_sources
 import json
 import sys
@@ -98,7 +100,94 @@ def show_preview(config: dict, base_dir: Path) -> int:
 
     return 1 if errors else 0
 
+def apply_distribution(config: dict, base_dir: Path) -> int:
+    # проверяем папки до перемещения
+    try:
+        duplicates_folder = make_folder_path(
+            config["destinations"].get("duplicates"), base_dir
+        ).resolve()
+        files, errors = scan_sources(
+            config["sources"], config["skip_extensions"], base_dir
+        )
+        source_folders = {
+            make_folder_path(folder, base_dir).resolve()
+            for folder in config["sources"].values()
+            if isinstance(folder, str) and folder.strip()
+        }
+        if duplicates_folder in source_folders:
+            raise ValueError("Папка дубликатов совпадает с источником.")
+    except (OSError, ValueError) as error:
+        print(f"Ошибка подготовки: {error}", file=sys.stderr)
+        return 1
+
+    counts = Counter()
+    print("\nРаспределение файлов:")
+
+    for source_name, file_path in files:
+        try:
+            destination, codex_folder = choose_destination(
+                file_path, source_name, config, base_dir
+            )
+            if destination is None:
+                continue
+
+            # исключаем повторное сканирование
+            for folder in (destination, codex_folder):
+                if folder is None:
+                    continue
+                if folder.resolve() in source_folders:
+                    raise ValueError("Папка назначения совпадает с источником.")
+                if folder.resolve() == duplicates_folder:
+                    raise ValueError("Папка назначения совпадает с папкой дубликатов.")
+
+            print(f"\n[{source_name}] {file_path}")
+
+            # сохраняем копию до удаления исходника
+            if (
+                codex_folder is not None
+                and codex_folder.resolve() != destination.resolve()
+            ):
+                copy_path, created = copy_to_codex(file_path, codex_folder)
+                if created:
+                    counts["copies"] += 1
+                    print(f"  Создана копия в Codex: {copy_path}")
+                else:
+                    counts["existing_copies"] += 1
+                    print(f"  Копия уже есть в Codex: {copy_path}")
+
+            target, is_duplicate = move_file(
+                file_path, destination, duplicates_folder
+            )
+        except (OSError, ValueError) as error:
+            errors.append(f"[{source_name}] {file_path.name}: {error}")
+            continue
+
+        # считаем только успешные перемещения
+        counts["moved"] += 1
+        if is_duplicate:
+            counts["duplicates"] += 1
+            print(f"  Дубликат перемещён в: {target}")
+        else:
+            print(f"  Перемещён в: {target}")
+
+    for error in errors:
+        print(f"Ошибка: {error}", file=sys.stderr)
+
+    print(f"\nНайдено файлов: {len(files)}")
+    print(f"Перемещено файлов: {counts['moved']}")
+    print(f"Из них дубликатов: {counts['duplicates']}")
+    print(f"Создано копий в Codex: {counts['copies']}")
+    print(f"Копий уже существовало: {counts['existing_copies']}")
+    print(f"Ошибок: {len(errors)}")
+    return 1 if errors else 0
+
 def main() -> int:
+    # выбираем режим запуска
+    parser = argparse.ArgumentParser(description="Органайзер файлов")
+    parser.add_argument(
+        "--apply", action="store_true", help="переместить файлы"
+    )
+    args = parser.parse_args()
     # обрабатываем ошибки чтения и проверки
     try:
         config = load_config(CONFIG_PATH)
@@ -127,7 +216,9 @@ def main() -> int:
         print(f"Папок-источников: {len(config['sources'])}")
         print(f"Предметов: {len(config['subjects'])}")
         print(f"Проектов Codex: {len(config['projects'])}")
-        return show_preview(config, BASE_DIR)
+        if args.apply:
+            return apply_distribution(config, BASE_DIR)
+
 
     print(f"Ошибка: {error_message}", file=sys.stderr)
     return 1  # ошибка
